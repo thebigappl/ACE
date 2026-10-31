@@ -60,13 +60,13 @@ void addPawnMoves(const Position& pos, int from, MoveList& moveList) {
     const Piece *board = pos.pieces;
     int colour = pos.sideToMove;
     int enPassantSquare = pos.enPassantSquare;
-    int fromRank = getRank(from);
+    int fromRank = squareRank[from];
     int pawnDirection = pawnDirections[colour];
     int forwardDirection = pawnDirection * 10;
 
     // First check normal pawn movement
     int targetSquare = from + forwardDirection;
-    int targetRank = getRank(targetSquare);
+    int targetRank = squareRank[targetSquare];
     int targetPiece = board[targetSquare];
     if (targetPiece == EMPTY) {
         // To promote or not
@@ -148,14 +148,14 @@ MoveList generateMoves(const Position& pos) {
         if (piece == OFFBOARD || piece == EMPTY) continue;
         if (!isSameColour(colour, piece)) continue;
 
-        int pieceType = getPieceType(piece);
-        if (isSlidingPiece[pieceType]) {
-            addSlidingMoves(pos, i, pieceType, moveList);
-        } else if (pieceType == KNIGHT) {
+        int type = pieceType[piece];
+        if (isSlidingPiece[type]) {
+            addSlidingMoves(pos, i, type, moveList);
+        } else if (type == KNIGHT) {
             addKnightMoves(pos, i, moveList);
-        } else if (pieceType == PAWN) {
+        } else if (type == PAWN) {
             addPawnMoves(pos, i, moveList);
-        } else if (pieceType == KING) {
+        } else if (type == KING) {
             addKingMoves(pos, i, moveList);
         }
         // etc...
@@ -173,17 +173,7 @@ MoveList generateLegalMoves(const Position& pos) {
     int colour = pos.sideToMove;
 
     for (const Move& move : pseudoLegalMoveList) {
-        bool valid = true;
-        if (getPieceType(pos.pieces[move.from]) == KING && isCastle(move)) {
-            if (isInCheck(testPos, colour)) valid = false;
-
-            Square middleSquare = (move.from + move.to) / 2;
-            UndoInfo undo = makeMove(testPos, {move.from, middleSquare});
-
-            if (isInCheck(testPos, colour)) valid = false;
-
-            unmakeMove(testPos, {move.from, middleSquare}, undo);
-        }
+        bool valid = isCastleLegal(testPos, move);
         UndoInfo undo = makeMove(testPos, move);
 
         if (isInCheck(testPos, colour)) valid = false;

@@ -74,6 +74,6 @@ void initialisePositionHash(Position& pos) {
     }
     localHash ^= zobrist.castlingKey[castlingIndex];
 
-    if (pos.enPassantSquare != -1) localHash ^= zobrist.enPassantKey[getFile(pos.enPassantSquare)];
+    if (pos.enPassantSquare != -1) localHash ^= zobrist.enPassantKey[squareFile[pos.enPassantSquare]];
     pos.hash = localHash;
 }

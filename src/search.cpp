@@ -4,17 +4,33 @@
 #include "evaluation.hpp"
 #include "movegen.hpp"
 #include "move.hpp"
+#include "pieces.hpp"
 #include <vector>
 #include <iostream>
 #include <algorithm>
 using namespace std;
 
+int getTTIndex(const Position& pos) {
+    return pos.hash & indexMask;
+}
+
 int movePriorityScore(const Position& pos, const Move& move) {
-    if (move.promotionPiece != EMPTY) return 3;
+    int score = 1;
+    if (move.promotionPiece != EMPTY) {
+        score += PROMO_MULT *
+            (pieceValues[pieceType[move.promotionPiece]] -
+            pieceValues[PAWN]);
+    }
     if ((pos.pieces[move.from] == wP || pos.pieces[move.from] == bP) &&
-        move.to == pos.enPassantSquare) return 2;
-    if (isCapture(pos, move)) return 2;
-    return 1;
+        move.to == pos.enPassantSquare) {
+        score += CAPTURE_BASE_SCORE + (CAPTURE_MULT - 1) * pieceValues[PAWN];
+    }
+    if (isCapture(pos, move)) {
+        score += CAPTURE_BASE_SCORE +
+            CAPTURE_MULT * pieceValues[pieceType[move.to]] -
+            pieceValues[pieceType[move.from]];
+    }
+    return score;
 }
 
 bool priorityComparisonRule(const ScoredMove& a, const ScoredMove& b) {
@@ -85,11 +101,46 @@ int quiescenceSearch(Position& pos, int ply, U64& nodes, int alpha, int beta, in
     return bestScore;
 }
 
+bool hasLegalMove(Position& pos) {
+    MoveList moveList = generateMoves(pos);
+    for (const Move& move : moveList) {
+        if (isMoveLegal(pos, move)) return true;
+    }
+    return false;
+}
+
 // Recursive search function for finding the best move
 int search(Position& pos, int depth, int ply, U64& nodes, int alpha, int beta) {
     nodes++;
     int colour = pos.sideToMove;
     bool inCheck = isInCheck(pos, colour);
+
+    if (depth == 0) {
+        if (!hasLegalMove(pos)) return inCheck ? -(MATE_SCORE - ply) : 0;
+        return quiescenceSearch(pos, ply, nodes, alpha, beta, 0);
+    }
+
+    int ttIndex = getTTIndex(pos);
+    int originalAlpha = alpha;
+    int originalBeta = beta;
+
+    // check old TT entry
+    Move hashMove{-1, -1, EMPTY};
+    TTEntry entry = transpositionTable[ttIndex];
+    if (entry.occupied && entry.hash == pos.hash) {
+        hashMove = entry.bestMove;
+        int ttScore = entry.score;
+        if (abs(abs(ttScore) - MATE_SCORE) <= MAX_PLY) {
+            if (ttScore < 0) ttScore += ply;
+            else ttScore -= ply;
+        }
+        if (entry.depth >= depth && (entry.boundType == EXACT ||
+            (entry.boundType == LOWERBOUND && ttScore >= beta) ||
+            (entry.boundType == UPPERBOUND && ttScore <= alpha))) {
+            return ttScore;
+        }
+    }
+    
 
     // generate moves only once
     MoveList moveList = generateMoves(pos);
@@ -100,21 +151,30 @@ int search(Position& pos, int depth, int ply, U64& nodes, int alpha, int beta) {
     int n = moveList.count;
     for (int i = 0; i < n; i++) {
         priorityMoveList[i].move = moveList.moves[i];
-        priorityMoveList[i].priorityScore = movePriorityScore(pos, priorityMoveList[i].move);
+        if (priorityMoveList[i].move == hashMove) {
+            priorityMoveList[i].priorityScore = INFINITY_SCORE;
+        } else {
+            priorityMoveList[i].priorityScore = movePriorityScore(pos, priorityMoveList[i].move);
+        }
     }
     sort(priorityMoveList, priorityMoveList + n, priorityComparisonRule);
 
     int bestScore = -INFINITY_SCORE;
+    Move bestMove{-1, -1, EMPTY};
     bool isLegal = false;
     for (int i = 0; i < n; i++) {
         const Move& move = priorityMoveList[i].move;
+        if (!isCastleLegal(pos, move)) continue;
         UndoInfo undo = makeMove(pos, move);
         // Negate the result because the next call to search
         // is from the perspective of the other player
         if (!isInCheck(pos, colour)) {
             if (depth > 0) {
                 int score = -search(pos, depth - 1, ply + 1, nodes, -beta, -alpha);
-                bestScore = max(bestScore, score);
+                if (score > bestScore) {
+                    bestScore = score;
+                    bestMove = move;
+                }
                 alpha = max(alpha, score);
             }
             isLegal = true;
@@ -122,13 +182,32 @@ int search(Position& pos, int depth, int ply, U64& nodes, int alpha, int beta) {
 
         unmakeMove(pos, move, undo);
 
-        if (alpha >= beta || (isLegal && depth == 0)) break;
+        if (alpha >= beta) break;
     }
-    
+
     if (!isLegal) return inCheck ? -(MATE_SCORE - ply) : 0;
 
-    if (depth == 0) {
-        return quiescenceSearch(pos, ply, nodes, alpha, beta, 0);
+    int ttScore = bestScore;
+    if (abs(abs(bestScore) - MATE_SCORE) <= MAX_PLY) {
+        if (bestScore < 0) ttScore -= ply;
+        else ttScore += ply;
+    }
+    entry.bestMove = bestMove;
+    entry.depth = depth;
+    entry.hash = pos.hash;
+    entry.score = ttScore;
+    entry.occupied = true;
+
+    if (bestScore <= originalAlpha) {
+        entry.boundType = UPPERBOUND;
+    } else if (bestScore >= originalBeta) {
+        entry.boundType = LOWERBOUND;
+    } else {
+        entry.boundType = EXACT;
+    }
+
+    if (depth >= transpositionTable[ttIndex].depth) {
+        transpositionTable[ttIndex] = entry;
     }
 
     return bestScore;

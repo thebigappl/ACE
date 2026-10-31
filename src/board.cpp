@@ -1,12 +1,5 @@
 #include "types.hpp"
-
-int getRank(Square square) {
-    return (square - A1) / 10;
-}
-
-int getFile(Square square) {
-    return (square - A1) % 10;
-}
+#include "constants.hpp"
 
 bool isStartingPosition(int colour, int rank) {
     return ((colour == WHITE && rank == RANK_2) ||
@@ -19,5 +12,5 @@ bool isPromotionRank(int colour, int rank) {
 }
 
 int getM64Index(Square square) {
-    return (getRank(square) * 8 + getFile(square));
+    return (squareRank[square] * 8 + squareFile[square]);
 }

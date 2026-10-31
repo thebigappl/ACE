@@ -37,14 +37,14 @@ UndoInfo makeMove(Position& pos, Move move) {
     pos.hash ^= zobrist.castlingKey[castlingIndex];
 
     // XOR out the original en passant square from the hash if it existed
-    if (pos.enPassantSquare != -1) pos.hash ^= zobrist.enPassantKey[getFile(pos.enPassantSquare)];
+    if (pos.enPassantSquare != -1) pos.hash ^= zobrist.enPassantKey[squareFile[pos.enPassantSquare]];
 
     bool diagonal = isDiagonalDirection(move.to - move.from);
     int m64From = getM64Index(move.from);
     int m64To = getM64Index(move.to);
 
     // Modify current position state
-    Piece movingPieceType = getPieceType(board[move.from]);
+    Piece movingPieceType = pieceType[board[move.from]];
     Piece movingPiece = board[move.from];
     Piece targetPiece = board[move.to];
     board[move.to] = board[move.from];
@@ -91,7 +91,7 @@ UndoInfo makeMove(Position& pos, Move move) {
     }
 
     // Check if a rook was captured
-    if (getPieceType(undo.capturedPiece) == ROOK) {
+    if (pieceType[undo.capturedPiece] == ROOK) {
         for (int i = 0; i < 4; i++) {
             if (move.to == originalRookPositions[i]) pos.canCastle[i] = false;
         }
@@ -102,7 +102,7 @@ UndoInfo makeMove(Position& pos, Move move) {
 
     // Check promotion
     if (movingPieceType == PAWN &&
-        isPromotionRank(pos.sideToMove, getRank(move.to))) {
+        isPromotionRank(pos.sideToMove, squareRank[move.to])) {
         board[move.to] = move.promotionPiece;
         // XOR in newly promoted piece
         pos.hash ^= zobrist.pieceSquareKey[move.promotionPiece][m64To];
@@ -129,7 +129,7 @@ UndoInfo makeMove(Position& pos, Move move) {
         (move.to - move.from) * pawnDirections[pos.sideToMove] == 20) {
         pos.enPassantSquare = (move.to + move.from) / 2;
         // XOR in new en passant square
-        pos.hash ^= zobrist.enPassantKey[getFile(pos.enPassantSquare)];
+        pos.hash ^= zobrist.enPassantKey[squareFile[pos.enPassantSquare]];
     } else {
         pos.enPassantSquare = -1;
     }
@@ -159,7 +159,7 @@ void unmakeMove(Position& pos, Move move, const UndoInfo& undo) {
     board[undo.captureSquare] = undo.capturedPiece;
 
     // If last move was a castle, also move the rook back
-    if (isCastle(move) && getPieceType(undo.movedPiece) == KING) {
+    if (isCastle(move) && pieceType[undo.movedPiece] == KING) {
         Square rookSquare, origRookSquare;
         if (move.to > move.from) {
             rookSquare = move.to - 1;
@@ -177,7 +177,7 @@ void unmakeMove(Position& pos, Move move, const UndoInfo& undo) {
     pos.canCastle = undo.previousCanCastle;
     pos.enPassantSquare = undo.previousEnPassantSquare;
     pos.halfMoveClock = undo.previousHalfMoveClock;
-    pos.sideToMove = (pos.sideToMove + 1) % 2;
+    pos.sideToMove ^= 1;
     pos.ply--;
     pos.hash = undo.previousHash;
 }

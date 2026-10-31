@@ -1,6 +1,7 @@
 #include "pieces.hpp"
 #include "constants.hpp"
 #include "movegen.hpp"
+#include "move.hpp"
 #include <vector>
 
 // Helper for checking if a move direction is diagonal
@@ -19,7 +20,7 @@ bool isPawnAttack(const Position& pos, int square, int attackingColour) {
         int targetSquare = square - attackDirection * direction;
         int targetPiece = board[targetSquare];
         if (targetPiece == OFFBOARD || targetPiece == EMPTY) continue;
-        if (getPieceType(targetPiece) == PAWN && 
+        if (pieceType[targetPiece] == PAWN && 
             isSameColour(attackingColour, targetPiece)) return true;
     }
     return false;
@@ -31,7 +32,7 @@ bool isKnightAttack(const Position& pos, int square, int attackingColour) {
         int targetSquare = square + direction;
         int targetPiece = board[targetSquare];
         if (targetPiece == OFFBOARD || targetPiece == EMPTY) continue;
-        if (getPieceType(targetPiece) == KNIGHT &&
+        if (pieceType[targetPiece] == KNIGHT &&
             isSameColour(attackingColour, targetPiece)) return true;
     }
     return false;
@@ -50,13 +51,13 @@ bool isSlidingAttack(const Position& pos, int square, int attackingColour) {
 
             if (!isSameColour(attackingColour, targetPiece)) break;
 
-            int pieceType = getPieceType(targetPiece);
+            int type = pieceType[targetPiece];
             bool diagonal = isDiagonalDirection(direction);
 
             if (diagonal) {
-                if (pieceType == BISHOP || pieceType == QUEEN) return true;
+                if (type == BISHOP || type == QUEEN) return true;
             } else {
-                if (pieceType == ROOK || pieceType == QUEEN) return true;
+                if (type == ROOK || type == QUEEN) return true;
             }
             break;
         }
@@ -70,7 +71,7 @@ bool isKingAttack(const Position& pos, int square, int attackingColour) {
         int targetSquare = square + direction;
         int targetPiece = board[targetSquare];
         if (targetPiece == OFFBOARD || targetPiece == EMPTY) continue;
-        if (getPieceType(targetPiece) == KING &&
+        if (pieceType[targetPiece] == KING &&
             isSameColour(attackingColour, targetPiece)) return true;
     }
     return false;
@@ -102,4 +103,31 @@ bool isFiftyMoveDraw(const Position& pos) {
 
 bool isCapture(const Position& pos, const Move& move) {
     return pos.pieces[move.to] != EMPTY;
+}
+
+bool isCastleLegal(Position& pos, const Move& move) {
+    bool valid = true;
+    int colour = pos.sideToMove;
+    if (pieceType[pos.pieces[move.from]] == KING && isCastle(move)) {
+        if (isInCheck(pos, colour)) valid = false;
+
+        Square middleSquare = (move.from + move.to) / 2;
+        UndoInfo undo = makeMove(pos, {move.from, middleSquare});
+
+        if (isInCheck(pos, colour)) valid = false;
+
+        unmakeMove(pos, {move.from, middleSquare}, undo);
+    }
+    return valid;
+}
+
+bool isMoveLegal(Position& pos, const Move& move) {
+    bool valid = isCastleLegal(pos, move);
+    int colour = pos.sideToMove;
+    UndoInfo undo = makeMove(pos, move);
+
+    if (isInCheck(pos, colour)) valid = false;
+
+    unmakeMove(pos, move, undo);
+    return valid;
 }

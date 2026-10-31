@@ -16,3 +16,5 @@ bool isCheckmate(const Position& pos);
 bool isStalemate(const Position& pos);
 bool isFiftyMoveDraw(const Position& pos);
 bool isCapture(const Position& pos, const Move& move);
+bool isCastleLegal(Position& pos, const Move& move);
+bool isMoveLegal(Position& pos, const Move& move);

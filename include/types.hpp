@@ -55,6 +55,10 @@ enum {
     A8 = 91, B8, C8, D8, E8, F8, G8, H8, NO_SQ
 };
 
+enum {
+    EXACT, LOWERBOUND, UPPERBOUND
+};
+
 struct Position {
     Piece pieces[NUM_SQUARES];
 
@@ -179,4 +183,13 @@ struct ZobristKey {
             enPassantKey[i] = generator();
         }
     }
+};
+
+struct TTEntry {
+    U64 hash;
+    int depth = -1;
+    int score;
+    int boundType;
+    Move bestMove;
+    bool occupied;
 };

@@ -7,6 +7,7 @@
 #include "movegen.hpp"
 #include "pieces.hpp"
 #include "move.hpp"
+#include "constants.hpp"
 #include <sstream>
 #include <vector>
 #include <algorithm>
@@ -14,8 +15,8 @@ using namespace std;
 
 string squareToStr(Square square) {
     string squareStr = "";
-    squareStr += ('a' + getFile(square));
-    squareStr += ('1' + getRank(square));
+    squareStr += ('a' + squareFile[square]);
+    squareStr += ('1' + squareRank[square]);
 
     return squareStr;
 }
@@ -120,7 +121,7 @@ void runUci() {
             istringstream iss(input);
 
             string command, option;
-            int depth = 7, wtime = -1, btime = -1, winc = 0, binc = 0, movestogo = 0;
+            int depth = 8, wtime = -1, btime = -1, winc = 0, binc = 0, movestogo = 0;
 
             SearchLimits lims;
 
@@ -185,7 +186,7 @@ void runUci() {
                 cout << squareToStr(bestMove.from) << squareToStr(bestMove.to);
                 
                 if (bestMove.promotionPiece != EMPTY) {
-                    cout << pieceTypeToStr(getPieceType(bestMove.promotionPiece));
+                    cout << pieceTypeToStr(pieceType[bestMove.promotionPiece]);
                 }
 
                 cout << '\n';
