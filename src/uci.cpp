@@ -121,7 +121,7 @@ void runUci() {
             istringstream iss(input);
 
             string command, option;
-            int depth = 8, wtime = -1, btime = -1, winc = 0, binc = 0, movestogo = 0;
+            int depth = DEFAULT_DEPTH, wtime = -1, btime = -1, winc = 0, binc = 0, movestogo = 0;
 
             SearchLimits lims;
 

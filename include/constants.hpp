@@ -27,13 +27,18 @@ inline constexpr int CAPTURE_BASE_SCORE = 10000;
 // search
 inline constexpr int MATE_SCORE = 100000;
 inline constexpr int INFINITY_SCORE = 1000000;
-inline constexpr int MAX_Q_DEPTH = 6;
-inline constexpr int MAX_PLY = 16;
+inline constexpr int DEFAULT_DEPTH = 7;
+inline constexpr int MAX_Q_DEPTH = 5;
+inline constexpr int MAX_PLY = 256;
+inline constexpr int K_MOVE_1 = 9000;
+inline constexpr int K_MOVE_2 = 8000;
 
 // transposition tables
 inline ZobristKey zobrist;
-inline TTEntry transpositionTable[1048576];
+inline constexpr int TT_SIZE = 1048576;
+inline TTEntry transpositionTable[TT_SIZE];
 inline constexpr int indexMask = (1 << 20) - 1;
+inline Move killerMoves[MAX_PLY][2];
 
 // other
 inline constexpr int squareRank[120] = {

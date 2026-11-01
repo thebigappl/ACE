@@ -112,17 +112,18 @@ bool isCastleLegal(Position& pos, const Move& move) {
         if (isInCheck(pos, colour)) valid = false;
 
         Square middleSquare = (move.from + move.to) / 2;
-        UndoInfo undo = makeMove(pos, {move.from, middleSquare});
+        UndoInfo undo = makeMove(pos, {move.from, middleSquare, EMPTY});
 
         if (isInCheck(pos, colour)) valid = false;
 
-        unmakeMove(pos, {move.from, middleSquare}, undo);
+        unmakeMove(pos, {move.from, middleSquare, EMPTY}, undo);
     }
     return valid;
 }
 
 bool isMoveLegal(Position& pos, const Move& move) {
-    bool valid = isCastleLegal(pos, move);
+    if (!isCastleLegal(pos, move)) return false;
+    bool valid = true;
     int colour = pos.sideToMove;
     UndoInfo undo = makeMove(pos, move);
 

@@ -71,6 +71,7 @@ struct Position {
     int halfMoveClock = 0;
 
     U64 hash = 0;
+    U64 hashHist[1024];
 
     // Initialise a board containing 64 EMPTY squares and the remaining 56 are OFFBOARD
     Position() {
@@ -87,8 +88,8 @@ struct Position {
 };
 
 struct Move {
-    Square from;
-    Square to;
+    Square from = -1;
+    Square to = -1;
     Piece promotionPiece = EMPTY;
 
     bool operator==(Move other) {
@@ -186,10 +187,10 @@ struct ZobristKey {
 };
 
 struct TTEntry {
-    U64 hash;
+    U64 hash = 0;
     int depth = -1;
-    int score;
-    int boundType;
-    Move bestMove;
-    bool occupied;
+    int score = 0;
+    int boundType = 0;
+    Move bestMove{-1, -1, EMPTY};
+    bool occupied = false;
 };

@@ -99,6 +99,7 @@ UndoInfo makeMove(Position& pos, Move move) {
 
     // Check if move is irreversible (by the rules of the game)
     if (movingPieceType == PAWN || undo.capturedPiece != EMPTY) pos.halfMoveClock = 0;
+    else pos.halfMoveClock++;
 
     // Check promotion
     if (movingPieceType == PAWN &&
@@ -143,7 +144,7 @@ UndoInfo makeMove(Position& pos, Move move) {
 
     pos.sideToMove ^= 1;
     pos.hash ^= zobrist.sideToMoveKey;
-    pos.ply++;
+    pos.hashHist[pos.ply++] = pos.hash;
 
     return undo;
 }

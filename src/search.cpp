@@ -14,6 +14,10 @@ int getTTIndex(const Position& pos) {
     return pos.hash & indexMask;
 }
 
+void clearTT() {
+    fill(transpositionTable, transpositionTable + TT_SIZE, TTEntry{});
+}
+
 int movePriorityScore(const Position& pos, const Move& move) {
     int score = 1;
     if (move.promotionPiece != EMPTY) {
@@ -109,9 +113,19 @@ bool hasLegalMove(Position& pos) {
     return false;
 }
 
+bool isRepetition(const Position& pos) {
+    int count = 0;
+    int limit = max(0, pos.ply - 1 - pos.halfMoveClock);
+    for (int i = pos.ply - 1; i >= limit; i -= 2)
+        if (pos.hashHist[i] == pos.hash && ++count >= 2) return true;
+    return false;
+}
+
 // Recursive search function for finding the best move
 int search(Position& pos, int depth, int ply, U64& nodes, int alpha, int beta) {
     nodes++;
+    if (isRepetition(pos) || pos.halfMoveClock >= 100) return (ply % 2 == 0) ? -20 : 20;
+
     int colour = pos.sideToMove;
     bool inCheck = isInCheck(pos, colour);
 
@@ -134,7 +148,7 @@ int search(Position& pos, int depth, int ply, U64& nodes, int alpha, int beta) {
             if (ttScore < 0) ttScore += ply;
             else ttScore -= ply;
         }
-        if (entry.depth >= depth && (entry.boundType == EXACT ||
+        if (ply > 2 && entry.depth >= depth && (entry.boundType == EXACT ||
             (entry.boundType == LOWERBOUND && ttScore >= beta) ||
             (entry.boundType == UPPERBOUND && ttScore <= alpha))) {
             return ttScore;
@@ -153,6 +167,10 @@ int search(Position& pos, int depth, int ply, U64& nodes, int alpha, int beta) {
         priorityMoveList[i].move = moveList.moves[i];
         if (priorityMoveList[i].move == hashMove) {
             priorityMoveList[i].priorityScore = INFINITY_SCORE;
+        } else if (priorityMoveList[i].move == killerMoves[ply][0]) {
+            priorityMoveList[i].priorityScore = K_MOVE_1;
+        } else if (priorityMoveList[i].move == killerMoves[ply][1]) {
+            priorityMoveList[i].priorityScore = K_MOVE_2;
         } else {
             priorityMoveList[i].priorityScore = movePriorityScore(pos, priorityMoveList[i].move);
         }
@@ -169,20 +187,27 @@ int search(Position& pos, int depth, int ply, U64& nodes, int alpha, int beta) {
         // Negate the result because the next call to search
         // is from the perspective of the other player
         if (!isInCheck(pos, colour)) {
-            if (depth > 0) {
-                int score = -search(pos, depth - 1, ply + 1, nodes, -beta, -alpha);
-                if (score > bestScore) {
-                    bestScore = score;
-                    bestMove = move;
-                }
-                alpha = max(alpha, score);
+            int score = -search(pos, depth - 1, ply + 1, nodes, -beta, -alpha);
+            if (score > bestScore) {
+                bestScore = score;
+                bestMove = move;
             }
+            alpha = max(alpha, score);
             isLegal = true;
         }
 
         unmakeMove(pos, move, undo);
 
-        if (alpha >= beta) break;
+        if (alpha >= beta) {
+            if (undo.capturedPiece == EMPTY && move.promotionPiece == EMPTY &&
+                killerMoves[ply][1] != move) {
+                if (killerMoves[ply][0].from != -1 && killerMoves[ply][0] != move) {
+                    killerMoves[ply][1] = killerMoves[ply][0];
+                }
+                killerMoves[ply][0] = move;
+            }
+            break;
+        }
     }
 
     if (!isLegal) return inCheck ? -(MATE_SCORE - ply) : 0;
@@ -213,8 +238,8 @@ int search(Position& pos, int depth, int ply, U64& nodes, int alpha, int beta) {
     return bestScore;
 }
 
-// Assumes that current side to move has at least 1 legal move (not checkmate or stalemate)
 SearchResult findBestMove(Position& pos, int depth) {
+    // clearTT();
     MoveList moveList = generateMoves(pos);
     int colour = pos.sideToMove;
     int bestScore = -INFINITY_SCORE;
@@ -228,13 +253,11 @@ SearchResult findBestMove(Position& pos, int depth) {
     // Reorder move list based on priority factors again
     // Only get legal moves
     for (const Move& move : moveList) {
-        UndoInfo undo = makeMove(pos, move);
-        if (!isInCheck(pos, colour)) {
+        if (isMoveLegal(pos, move)) {
             priorityMoveList[n].move = move;
             priorityMoveList[n].priorityScore = movePriorityScore(pos, move);
             n++;
         }
-        unmakeMove(pos, move, undo);
     }
 
     if (n == 0) {
