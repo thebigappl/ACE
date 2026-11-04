@@ -21,6 +21,7 @@ TEST_SEARCH_SRC = tests/test_search.cpp $(TEST_COMMON_SRC)
 TEST_PERFT_SRC = tests/test_perft.cpp src/perft.cpp $(TEST_COMMON_SRC)
 TEST_BENCHMARK_SRC = tests/test_benchmark.cpp src/benchmark.cpp $(TEST_COMMON_SRC)
 TEST_HASH_SRC = tests/test_hash.cpp $(TEST_COMMON_SRC)
+TEST_EVAL_SRC = tests/test_eval.cpp $(TEST_COMMON_SRC)
 
 .PHONY: all test clean
 
@@ -54,6 +55,9 @@ test_benchmark: $(TEST_BENCHMARK_SRC)
 
 test_hash: $(TEST_HASH_SRC)
 	$(CXX) $(CPPFLAGS) $(CXXFLAGS) $(TEST_HASH_SRC) -o test_hash
+
+test_eval: $(TEST_EVAL_SRC)
+	$(CXX) $(CPPFLAGS) $(CXXFLAGS) $(TEST_EVAL_SRC) -o test_eval
 
 clean:
 	rm -f chess test_movegen test_make_move test_attacks test_search test_perft test_benchmark

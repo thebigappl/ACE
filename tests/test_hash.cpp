@@ -1,10 +1,8 @@
 #include <iostream>
 #include <cassert>
 #include "types.hpp"
-#include "movegen.hpp"
 #include "position.hpp"
 #include "move.hpp"
-#include "attacks.hpp"
 using namespace std;
 
 // Test that incremental hashing is consistent with full pos hash calculation
@@ -12,7 +10,6 @@ void testPositionHash() {
     Position pos;
 
     initialiseStartingPosition(pos);
-    initialisePositionHash(pos);
     makeMove(pos, {E2, E4});
     U64 incrementalHash = pos.hash;
     initialisePositionHash(pos);

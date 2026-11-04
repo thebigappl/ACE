@@ -20,19 +20,30 @@ void clearTT() {
 
 int movePriorityScore(const Position& pos, const Move& move) {
     int score = 1;
+    bool quiet = true;
+    // Move is a promotion
     if (move.promotionPiece != EMPTY) {
+        quiet = false;
         score += PROMO_MULT *
             (pieceValues[pieceType[move.promotionPiece]] -
             pieceValues[PAWN]);
     }
+    // Move is en passant
     if ((pos.pieces[move.from] == wP || pos.pieces[move.from] == bP) &&
         move.to == pos.enPassantSquare) {
+        quiet = false;
         score += CAPTURE_BASE_SCORE + (CAPTURE_MULT - 1) * pieceValues[PAWN];
     }
+    // Move is normal capture
     if (isCapture(pos, move)) {
+        quiet = false;
         score += CAPTURE_BASE_SCORE +
             CAPTURE_MULT * pieceValues[pieceType[move.to]] -
             pieceValues[pieceType[move.from]];
+    }
+    // Move is quiet
+    if (quiet) {
+        score = history[move.from][move.to];
     }
     return score;
 }
@@ -199,14 +210,27 @@ int search(Position& pos, int depth, int ply, U64& nodes, int alpha, int beta) {
         unmakeMove(pos, move, undo);
 
         if (alpha >= beta) {
-            if (undo.capturedPiece == EMPTY && move.promotionPiece == EMPTY &&
-                killerMoves[ply][1] != move) {
-                if (killerMoves[ply][0].from != -1 && killerMoves[ply][0] != move) {
-                    killerMoves[ply][1] = killerMoves[ply][0];
+            // if it was a quiet move:
+            if (undo.capturedPiece == EMPTY && move.promotionPiece == EMPTY) {
+                if (killerMoves[ply][1] != move) {
+                    if (killerMoves[ply][0].from != -1 && killerMoves[ply][0] != move) {
+                        killerMoves[ply][1] = killerMoves[ply][0];
+                    }
+                    killerMoves[ply][0] = move;
                 }
-                killerMoves[ply][0] = move;
+                history[move.from][move.to] = min(
+                    history[move.from][move.to] + depth * depth -
+                    (depth * depth * history[move.from][move.to] / H_MAX),
+                    H_MAX);
             }
             break;
+        }
+
+        if (undo.capturedPiece == EMPTY && move.promotionPiece == EMPTY) {
+            history[move.from][move.to] = max(
+                history[move.from][move.to] - depth * depth -
+                (depth * depth * history[move.from][move.to] / H_MAX),
+                -H_MAX);
         }
     }
 
