@@ -1,5 +1,9 @@
+
+#include <sstream>
+#include <algorithm>
 #include <iostream>
 #include <string>
+#include <optional>
 #include "types.hpp"
 #include "board.hpp"
 #include "position.hpp"
@@ -8,9 +12,7 @@
 #include "pieces.hpp"
 #include "move.hpp"
 #include "constants.hpp"
-#include <sstream>
-#include <vector>
-#include <algorithm>
+#include "openingbook.hpp"
 using namespace std;
 
 string squareToStr(Square square) {
@@ -42,6 +44,8 @@ int strToPieceType(string pieceTypeStr) {
 }
 
 void runUci() {
+    OpeningBook book;
+    bool shouldUseBook = book.loadBook("books/komodo.bin");
     string input;
     Position pos;
     initialiseStartingPosition(pos);
@@ -123,8 +127,6 @@ void runUci() {
             string command, option;
             int depth = DEFAULT_DEPTH, wtime = -1, btime = -1, winc = 0, binc = 0, movestogo = 0;
 
-            SearchLimits lims;
-
             if (!(iss >> command)) continue;
             bool valid = true;
             while (iss >> option) {
@@ -182,7 +184,16 @@ void runUci() {
             if (legalMoveList.count == 0) {
                 cout << "0000\n";
             } else {
-                Move bestMove = findBestMove(pos, depth).bestMove;
+                Move bestMove;
+                optional<Move> move = nullopt;
+                if (shouldUseBook) {
+                    move = book.getBookMove(pos);
+                }
+                if (move.has_value()) {
+                    bestMove = move.value();
+                } else {
+                    bestMove = findBestMove(pos, depth).bestMove;
+                }
                 cout << squareToStr(bestMove.from) << squareToStr(bestMove.to);
                 
                 if (bestMove.promotionPiece != EMPTY) {

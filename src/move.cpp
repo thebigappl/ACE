@@ -1,10 +1,8 @@
 #include "types.hpp"
-#include "movegen.hpp"
-#include "pieces.hpp"
 #include "constants.hpp"
 #include "board.hpp"
 #include "attacks.hpp"
-#include <vector>
+#include "pieces.hpp"
 #include <array>
 using namespace std;
 
@@ -30,18 +28,27 @@ UndoInfo makeMove(Position& pos, Move move) {
     undo.previousHash = pos.hash;
 
     // XOR out the original castling rights from the hash
-    int castlingIndex = 0;
-    for (int i = 0, j = 8; i < 4; i++, j /= 2) {
-        if (pos.canCastle[i]) castlingIndex += j;
+    for (int i = 0; i < 4; i++) {
+        if (pos.canCastle[i]) {
+            pos.hash ^= RANDOM64[CASTLING_OFFSET + i];
+        }
     }
-    pos.hash ^= zobrist.castlingKey[castlingIndex];
 
     // XOR out the original en passant square from the hash if it existed
-    if (pos.enPassantSquare != -1) pos.hash ^= zobrist.enPassantKey[squareFile[pos.enPassantSquare]];
+    if (pos.enPassantSquare != -1) {
+        int left = pos.enPassantSquare - pawnDirections[pos.sideToMove] * 9;
+        int right = pos.enPassantSquare - pawnDirections[pos.sideToMove] * 11;
+        if ((pieceType[pos.pieces[left]] == PAWN &&
+            isSameColour(pos.sideToMove, pos.pieces[left])) ||
+            (pieceType[pos.pieces[right]] == PAWN &&
+            isSameColour(pos.sideToMove, pos.pieces[right]))) {
+            pos.hash ^= RANDOM64[EN_PASSANT_OFFSET + squareFile[pos.enPassantSquare]];
+        }
+    }
 
     bool diagonal = isDiagonalDirection(move.to - move.from);
-    int m64From = getM64Index(move.from);
-    int m64To = getM64Index(move.to);
+    int m64From = m64Square[move.from];
+    int m64To = m64Square[move.to];
 
     // Modify current position state
     Piece movingPieceType = pieceType[board[move.from]];
@@ -51,8 +58,8 @@ UndoInfo makeMove(Position& pos, Move move) {
     board[move.from] = EMPTY;
 
     // XOR out the original piece positions before the move
-    pos.hash ^= zobrist.pieceSquareKey[movingPiece][m64From];
-    if (targetPiece != EMPTY) pos.hash ^= zobrist.pieceSquareKey[targetPiece][m64To];
+    pos.hash ^= RANDOM64[64 * polyglotPieceIndex[movingPiece] + m64From];
+    if (targetPiece != EMPTY) pos.hash ^= RANDOM64[64 * polyglotPieceIndex[targetPiece] + m64To];
 
     // Check if the king moved
     if (movingPieceType == KING) {
@@ -73,9 +80,9 @@ UndoInfo makeMove(Position& pos, Move move) {
             board[newRookSquare] = board[rookSquare];
             board[rookSquare] = EMPTY;
             // XOR out old rook position
-            pos.hash ^= zobrist.pieceSquareKey[rook][getM64Index(rookSquare)];
+            pos.hash ^= RANDOM64[64 * polyglotPieceIndex[rook] + m64Square[rookSquare]];
             // XOR in new rook position
-            pos.hash ^= zobrist.pieceSquareKey[rook][getM64Index(newRookSquare)];
+            pos.hash ^= RANDOM64[64 * polyglotPieceIndex[rook] + m64Square[newRookSquare]];
         }
         // Remove colour's right to castle on both sides
         for (int i = 0; i < 2; i++) {
@@ -106,10 +113,10 @@ UndoInfo makeMove(Position& pos, Move move) {
         isPromotionRank(pos.sideToMove, squareRank[move.to])) {
         board[move.to] = move.promotionPiece;
         // XOR in newly promoted piece
-        pos.hash ^= zobrist.pieceSquareKey[move.promotionPiece][m64To];
+        pos.hash ^= RANDOM64[64 * polyglotPieceIndex[move.promotionPiece] + m64To];
     } else {
         // XOR in moving piece
-        pos.hash ^= zobrist.pieceSquareKey[movingPiece][m64To];
+        pos.hash ^= RANDOM64[64 * polyglotPieceIndex[movingPiece] + m64To];
     }
 
     // Check en passant
@@ -121,7 +128,7 @@ UndoInfo makeMove(Position& pos, Move move) {
         undo.capturedPiece = capturePiece;
         undo.captureSquare = captureSquare;
         // XOR out captured pawn en passant
-        pos.hash ^= zobrist.pieceSquareKey[capturePiece][getM64Index(captureSquare)];
+        pos.hash ^= RANDOM64[64 * polyglotPieceIndex[capturePiece] + m64Square[captureSquare]];
         board[captureSquare] = EMPTY;
     }
 
@@ -130,20 +137,28 @@ UndoInfo makeMove(Position& pos, Move move) {
         (move.to - move.from) * pawnDirections[pos.sideToMove] == 20) {
         pos.enPassantSquare = (move.to + move.from) / 2;
         // XOR in new en passant square
-        pos.hash ^= zobrist.enPassantKey[squareFile[pos.enPassantSquare]];
+        int nextSide = pos.sideToMove ^ 1;
+        int left = pos.enPassantSquare - pawnDirections[nextSide] * 9;
+        int right = pos.enPassantSquare - pawnDirections[nextSide] * 11;
+        if ((pieceType[pos.pieces[left]] == PAWN &&
+            isSameColour(nextSide, pos.pieces[left])) ||
+            (pieceType[pos.pieces[right]] == PAWN &&
+            isSameColour(nextSide, pos.pieces[right]))) {
+            pos.hash ^= RANDOM64[EN_PASSANT_OFFSET + squareFile[pos.enPassantSquare]];
+        }
     } else {
         pos.enPassantSquare = -1;
     }
 
     // XOR in new castling state
-    castlingIndex = 0;
-    for (int i = 0, j = 8; i < 4; i++, j /= 2) {
-        if (pos.canCastle[i]) castlingIndex += j;
+    for (int i = 0; i < 4; i++) {
+        if (pos.canCastle[i]) {
+            pos.hash ^= RANDOM64[CASTLING_OFFSET + i];
+        }
     }
-    pos.hash ^= zobrist.castlingKey[castlingIndex];
 
     pos.sideToMove ^= 1;
-    pos.hash ^= zobrist.sideToMoveKey;
+    pos.hash ^= RANDOM64[SIDE_TO_MOVE_OFFSET];
     pos.hashHist[pos.ply++] = pos.hash;
 
     return undo;

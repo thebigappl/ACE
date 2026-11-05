@@ -3,7 +3,10 @@
 #include <array>
 #include <random>
 using namespace std;
-using U64 = unsigned long long;
+using U64 = uint64_t;
+using U16 = uint16_t;
+using U32 = uint32_t;
+using U8 = uint8_t;
 using Square = int;
 using Piece = int;
 
@@ -72,6 +75,7 @@ struct Position {
 
     U64 hash = 0;
     U64 hashHist[1024];
+    U64 polyglotHash = 0;
 
     // Initialise a board containing 64 EMPTY squares and the remaining 56 are OFFBOARD
     Position() {
@@ -111,6 +115,7 @@ struct UndoInfo {
 
     int previousHalfMoveClock;
     U64 previousHash;
+    U64 previousPolyglotHash;
 };
 
 struct SearchLimits {
@@ -193,4 +198,11 @@ struct TTEntry {
     int boundType = 0;
     Move bestMove{-1, -1, EMPTY};
     bool occupied = false;
+};
+
+struct BookEntry {
+    U64 hash = 0;
+    U16 move = 0;
+    U16 weight = 0;
+    U32 learn = 0;
 };

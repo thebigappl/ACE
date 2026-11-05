@@ -1,4 +1,3 @@
-#include "types.hpp"
 #include "uci.hpp"
 using namespace std;
 

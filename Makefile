@@ -13,7 +13,8 @@ TEST_COMMON_SRC = src/movegen.cpp \
                   src/attacks.cpp \
                   src/move.cpp \
 				  src/search.cpp \
-				  src/evaluation.cpp
+				  src/evaluation.cpp \
+				  src/openingbook.cpp
 TEST_MOVEGEN_SRC = tests/test_movegen.cpp $(TEST_COMMON_SRC)
 TEST_MAKE_MOVE_SRC = tests/test_make_move.cpp $(TEST_COMMON_SRC)
 TEST_ATTACKS_SRC = tests/test_attacks.cpp $(TEST_COMMON_SRC)

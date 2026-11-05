@@ -1,11 +1,9 @@
 #include "types.hpp"
-#include "movegen.hpp"
 #include "pieces.hpp"
 #include "constants.hpp"
 #include "board.hpp"
 #include "attacks.hpp"
 #include "move.hpp"
-#include <vector>
 #include <array>
 using namespace std;
 

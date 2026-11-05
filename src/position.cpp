@@ -1,6 +1,7 @@
 #include "types.hpp"
 #include "board.hpp"
 #include "constants.hpp"
+#include "pieces.hpp"
 
 void initialisePositionHash(Position& pos) {
     U64 localHash = 0;
@@ -8,19 +9,30 @@ void initialisePositionHash(Position& pos) {
         Piece targetPiece = pos.pieces[i];
         if (targetPiece == OFFBOARD || targetPiece == EMPTY) continue;
 
-        int mb64Square = getM64Index(i);
-        localHash ^= zobrist.pieceSquareKey[targetPiece][mb64Square];
+        int mb64Square = m64Square[i];
+        localHash ^= RANDOM64[64 * polyglotPieceIndex[targetPiece] + mb64Square];
     }
 
-    if (pos.sideToMove == BLACK) localHash ^= zobrist.sideToMoveKey;
-
-    int castlingIndex = 0;
-    for (int i = 0, j = 8; i < 4; i++, j /= 2) {
-        if (pos.canCastle[i]) castlingIndex += j;
+    if (pos.sideToMove == WHITE) {
+        localHash ^= RANDOM64[SIDE_TO_MOVE_OFFSET];
     }
-    localHash ^= zobrist.castlingKey[castlingIndex];
 
-    if (pos.enPassantSquare != -1) localHash ^= zobrist.enPassantKey[squareFile[pos.enPassantSquare]];
+    for (int i = 0; i < 4; i++) {
+        if (pos.canCastle[i]) {
+            localHash ^= RANDOM64[CASTLING_OFFSET + i];
+        }
+    }
+
+    if (pos.enPassantSquare != -1) {
+        int left = pos.enPassantSquare - pawnDirections[pos.sideToMove] * 9;
+        int right = pos.enPassantSquare - pawnDirections[pos.sideToMove] * 11;
+        if ((pieceType[pos.pieces[left]] == PAWN &&
+            isSameColour(pos.sideToMove, pos.pieces[left])) ||
+            (pieceType[pos.pieces[right]] == PAWN &&
+            isSameColour(pos.sideToMove, pos.pieces[right]))) {
+            localHash ^= RANDOM64[EN_PASSANT_OFFSET + squareFile[pos.enPassantSquare]];
+        }
+    }
     pos.hash = localHash;
 }
 

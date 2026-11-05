@@ -2,7 +2,6 @@
 #include "constants.hpp"
 #include "movegen.hpp"
 #include "move.hpp"
-#include <vector>
 
 // Helper for checking if a move direction is diagonal
 bool isDiagonalDirection(int direction) {
